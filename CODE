@@ -1,0 +1,533 @@
+/*
+"cycleSoundEnvironments"
+.zZ. (oscarOctavioSozaFigueroa)
+
+"sense the environment and traduce into a scale of musical notation"
+Barcelona-Vilnus-Madrid-Bristol-cochabamba
+2013_december
+2014_september
+2016_mayo
+
+Using SEEEDuino+Environment sensors+Music Instrument Shield+bluetooth
+ 
+Un(a)counting: numerical representation of the reality
+INtransit
+Bristol Bienial: crossing the line
+Cimientos: morirantesqueesclavosvivir
+
+>>>>Creative COmmons License<<<<<<
+************copyleft*************
+*/
+//LIBRARIES
+//Temp&humi
+#include <TH02_dev.h>
+#include "Arduino.h"
+#include "Wire.h"  
+//MIDI shield
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(2, 3); // RX, TX
+//BLUETOOTH
+#define RxD 7
+#define TxD 8
+#define DEBUG_ENABLED  1
+SoftwareSerial blueToothSerial(RxD,TxD);
+
+byte note = 0;//The MIDI note value to be initialized
+byte note2 = 0;
+byte note3 = 0;
+byte note4 = 0;
+
+byte noteT = 60; //note incresse or dicreese with the TEMPERATURE
+byte noteL = 0; //note for initialized LIGHT
+byte noteA = 35;
+byte noteH = 80;
+byte noteS = 40;
+
+byte resetMIDI = 4; //Tied to VS1053 Reset line
+byte ledPin = 13; //MIDI traffic inidicator
+
+//MIDI INSTRUMENTS
+int instrumentL= 98; //instrumentLIGHT
+int instrumentT= 14; //instrumentTEMPEMPERATURE
+int instrumentA= 10; //instrument Air
+int instrumentH= 124; //instrument humidity
+int instrumentS= 6; //instrument sound
+
+//light
+int LightNEW; //variable for read the sensor
+int LightOLD; //variable to compare 
+//nomalizacion light
+float lNormOLD;
+float lNorm;
+
+//temperature Cª
+float ctemperature; //variable for read the sensor
+float ctemperatureOLD; //variable to compare 
+//normalizacion temperatura
+float cNorm;
+float cNormOLD;
+
+//Air
+float air; //variable for read the sensor
+float airOLD; //variable to compare 
+//normalizacion air
+float aNorm;
+float aNormOLD;
+
+//humedity
+float humi; //variable for read the sensor
+float humiOLD; //variable to compare 
+//normalizacion humedity
+float hNorm;
+float hNormOLD;
+
+//sound
+int son; //variable for read the sensor
+int sonOLD; //variable to compare 
+//normalizacion sound
+float sNorm;
+float sNormOLD;
+
+//**********sending to bluetooth************
+//AIR SENSOR
+int getAir()
+{
+    int aire=analogRead(A2); 
+    return (int)aire;   
+}
+//TEMPERATURE SENSOR
+float getTemp()
+{
+    float temper = TH02.ReadTemperature(); 
+    return (float)temper;   
+}
+//HUMIDITY SENSOR
+float getHumi()
+{
+    float humidity = TH02.ReadHumidity();
+    return (float)humidity;   
+}
+//LIGHT SENSOR
+int getLight()
+{
+    int luz=analogRead(A0);
+    return (int)luz;   
+}
+//SOUND SENSOR
+int getSound()
+{
+    int sono=analogRead(A6);
+    return (int)sono;   
+}
+
+//********************************************
+
+
+
+
+void setup()
+{  
+    Serial.begin(9600);
+
+   //Setup MIDI control
+      mySerial.begin(31250);
+      pinMode(resetMIDI, OUTPUT);
+      digitalWrite(resetMIDI, LOW);
+      delay(100);
+      digitalWrite(resetMIDI, HIGH);
+      delay(100); 
+      TH02.begin(); //temp&humi
+      delay(100);
+      talkMIDI(0xB0, 0x07, 90); 
+   //Setup MIDI control
+    //setUp BlueTooth
+    pinMode(RxD, INPUT);
+    pinMode(TxD, OUTPUT);
+    setupBlueToothConnection(); 
+}
+
+void loop()
+{
+  //<<<<<<<<<Bluetooth>>>>>>>>>>>
+  
+  
+    char recvChar;
+    while(1)
+    {
+        if(blueToothSerial.available())
+        {//check if there's any data sent from the remote bluetooth shield
+            //recvChar = blueToothSerial.read();
+            //Serial.println(recvChar);
+            
+            //if(recvChar == 't' || recvChar == 'T')
+            //{
+                blueToothSerial.print("Noise: ");
+                blueToothSerial.println(getSound());
+                delay(100);
+                blueToothSerial.print("Light: ");
+                blueToothSerial.println(getLight());
+                delay(100);
+                blueToothSerial.print("aire: ");
+                blueToothSerial.println(getAir());
+                delay(100);
+                blueToothSerial.print("Humidity: ");
+                blueToothSerial.println(getHumi());
+                delay(100);
+                blueToothSerial.print("Temperature: ");
+                blueToothSerial.println(getTemp());
+                blueToothSerial.println(">>>>>>>>>>>>>>>>>>>>>> ");
+                delay (900);
+            //}
+        }
+        /*
+        if(Serial.available())
+        {//check if there's any data sent from the local serial terminal, you can add the other applications here
+            recvChar  = Serial.read();
+            blueToothSerial.print(recvChar);
+        }
+        */
+    
+
+
+  
+  
+  //<<<<<<<<<MIDI>>>>>>>>>>>>>>>>>>>>
+  talkMIDI(0xB0, 0, 0x79); //Bank select Melodic MIDI instruments
+        //SENSORS      
+        float temper = TH02.ReadTemperature(); 
+        float humidity = TH02.ReadHumidity();
+        int aire=analogRead(A2); 
+        int sono=analogRead(A6);
+        int luz=analogRead(A0);
+        
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>        
+  //NORMALIZATION MIDI Sensors  
+    //AIR
+    int Anova=aire;  
+    if (Anova>600){
+    Anova=600;
+    } 
+    if (Anova<280){
+    Anova=280;
+    }
+    Anova=Anova-280;
+    aNorm=Anova/320.00;
+    if (aNorm!=aNormOLD){
+       Serial.print("0 ");
+       Serial.println(aNorm);
+    }
+    aNormOLD=aNorm;
+    //AIR
+    
+    //HUMIDITY
+    float Hnova=humidity;  
+    if (Hnova>80){
+    Hnova=80;
+    }
+    if (Hnova<40){
+    Hnova=40;
+    }
+    Hnova=Hnova-40;
+    hNorm=Hnova/40.00;
+    if (hNorm!=hNormOLD){
+       Serial.print("1 ");
+       Serial.println(hNorm);
+    }
+    hNormOLD=hNorm;
+    //HUMIDITY
+    
+    //TEMPERATURE
+    float Tnova=temper;  
+    if (Tnova>28){
+    Tnova=28;
+    }
+    if (Tnova<14){
+    Tnova=14;
+    }
+    Tnova=Tnova-14;
+    cNorm=Tnova/14.00;
+    if (cNorm!=cNormOLD){
+       Serial.print("2 ");
+       Serial.println(cNorm);
+    }
+    cNormOLD=cNorm;
+    //TEMPERATURE
+    
+    //SOUND
+    int Snova=sono;  
+    if (Snova>500){
+    Snova=500;
+    }
+    if (Snova<100){
+    Snova=100;
+    }
+    Snova=Snova-100;
+    sNorm=Snova/400.00;
+    if (sNorm!=sNormOLD){
+       Serial.print("3 ");
+       Serial.println(sNorm);
+    }
+    sNormOLD=sNorm;
+    //SOUND
+    
+    //LIGTH
+    int Lnova=luz;  
+    if (Lnova>800){
+    Lnova=800;
+    }
+    if (Lnova<10){
+    Lnova=10;
+    }
+    Lnova=Lnova-10;
+    lNorm=Lnova/790.00;
+    if (lNorm!=lNormOLD){
+       Serial.print("4 ");
+       Serial.println(lNorm);
+    }
+    lNormOLD=lNorm;
+    //LIGHT
+
+  //END NORMALIZATION   
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+//*****************MIDI-SHIELD***********************
+
+//SOUND>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    son=sono;
+    //notation increases when the noise changes in the positive direction 
+    if ( son > sonOLD)
+    {
+        //Serial.print("Noise: ");
+        //Serial.println(son);
+        ///////////////MIDI////////////////////////
+        talkMIDI(0xC0, instrumentS, 0);
+        note4= noteS+1;
+         //Note on channel 1 
+         noteOn(0, note4, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note4, 100);
+         delay(50);
+        noteS=note4;        
+        ///////////////MIDI//////////////////////// 
+    }
+    else{delay(random(400,500));}
+    
+    //notation decreases when the noise changes in the negative direction    
+    if ( son < sonOLD)
+    {
+        //Serial.print("Noise: ");
+        //Serial.println(son);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentS, 0);
+        note4= noteS-1;
+         //Note on channel 1 
+         noteOn(0, note4, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note4, 100);
+         delay(50);
+        noteS=note4;        
+        /////////////////////////////////////// 
+    }
+    else{delay(random(300,350));}
+   sonOLD=son;
+   
+//HUMIDITY>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    humi=humidity;
+    //notation increases when the humidity changes in the positive direction 
+    if ( humi > humiOLD)
+    {
+        //Serial.print("Humidity: ");
+        //Serial.println(humi);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentH, 0);
+        note3= noteH+1;
+         //Note on channel 1 
+         noteOn(0, note3, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note3, 100);
+         delay(50);
+        noteH=note3;        
+        /////////////////////////////////////// 
+    }
+    else{delay(random(70,90));}
+    
+    //notation decreases when the humidity changes in the negative direction    
+    if ( humi < humiOLD)
+    {
+        //Serial.print("Humidity: ");
+        //Serial.println(humi);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentH, 0);
+        note3= noteH-1;
+         //Note on channel 1 
+         noteOn(0, note3, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note3, 100);
+         delay(50);
+        noteH=note3;        
+        /////////////////////////////////////// 
+    }
+    else{delay(random(60,80));}   
+   humiOLD=humi;
+   
+//AIR>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    air=aire;
+    //notation increases when the air quality changes in the positive direction 
+    if ( air > airOLD)
+    {
+        //Serial.print("Air: ");
+        //Serial.println(air);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentA, 0);
+        note2= noteA+1;
+         //Note on channel 1 
+         noteOn(0, note2, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note2, 100);
+         delay(50);
+        noteA=note2;        
+        ///////////////////////////////////////  
+    }
+    else{delay(random(90,120));}
+    
+    //notation decreases when the air quality changes in the negative direction    
+    if ( air < airOLD)
+    {
+        //Serial.print("Air: ");
+        //Serial.println(air);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentA, 0);
+        note2= noteA-1;
+         //Note on channel 1 
+         noteOn(0, note2, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note2, 100);
+         delay(50);
+        noteA=note2;        
+        /////////////////////////////////////// 
+    }
+    else{delay(random(90,120));}
+   
+   airOLD=air;
+  
+//TEMPERATURE>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    ctemperature=temper;
+    //notation increases when the temperature changes in the positive direction 
+    if ( ctemperature > ctemperatureOLD)
+    {
+        //Serial.print("temperature: ");
+        //Serial.println(ctemperature);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentT, 0);
+        note= noteT+1;
+         //Note on channel 1 
+         noteOn(0, note, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note, 100);
+         delay(50);
+        noteT=note;        
+        /////////////////////////////////////// 
+    }
+    else{delay(random(80,100));}
+    
+    //notation decreases when the temperature changes in the negative direction    
+    if ( ctemperature < ctemperatureOLD)
+    {
+        //Serial.print("temperature: ");
+        //Serial.println(ctemperature);
+        ///////////////////////////////////////
+        talkMIDI(0xC0, instrumentT, 0);
+        note= noteT-1;
+         //Note on channel 1 
+         noteOn(0, note, 100);
+         delay(50);
+         //Turn off the note 
+         noteOff(0, note, 100);
+         delay(50);
+        noteT=note;        
+        /////////////////////////////////////// 
+    }
+    else{delay(random(80,100));}
+   
+   ctemperatureOLD=ctemperature;
+
+//LIGHT>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//(bi)=randomical perception of the changes of the light into a musical notation
+    LightNEW=luz;
+
+    if ( LightNEW != LightOLD)
+    {
+     //Serial.print("Light: ");
+     //Serial.println(LightNEW);  
+     ///////////////////////////////////////////>
+     talkMIDI(0xC0, instrumentL, 0);
+     note=random(90,120);
+      //Note on channel 1 
+       noteOn(0, note, 60);
+       delay(50);
+      //Turn off the note 
+       noteOff(0, note, 60);
+       delay(50);
+       //Serial.println(note);
+       noteL=note;
+     ////////////////////////////////////////////>  
+    }
+    else {delay(random(50,80));}
+    
+   LightOLD=LightNEW;
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
+}
+}
+
+
+/*
+<<<<<<<<BlueTooth>>>>>>>>>>>
+sending to andriod phone with bluetoothSPP Pro
+*/
+
+void setupBlueToothConnection()
+{
+    blueToothSerial.begin(38400);                           // Set BluetoothBee BaudRate to default baud rate 38400
+    blueToothSerial.print("\r\n+STWMOD=0\r\n");             // set the bluetooth work in slave mode
+    blueToothSerial.print("\r\n+STNA=SeeedBTSlave\r\n");    // set the bluetooth name as "SeeedBTSlave"
+    blueToothSerial.print("\r\n+STOAUT=1\r\n");             // Permit Paired device to connect me
+    blueToothSerial.print("\r\n+STAUTO=0\r\n");             // Auto-connection should be forbidden here
+    delay(2000);                                            // This delay is required.
+    blueToothSerial.print("\r\n+INQ=1\r\n");                // make the slave bluetooth inquirable
+    Serial.println("The slave bluetooth is inquirable!");
+    delay(2000);                                            // This delay is required.
+    blueToothSerial.flush();
+}
+
+
+/*
+>>>>>>>MIDI INSTRUMENTS<<<<<<<<<<
+mensages for create musical notes in the
+music instrument shield
+*/
+//Send a MID note-on message.
+void noteOn(byte channel, byte note, byte attack_velocity) {
+  talkMIDI( (0x90 | channel), note, attack_velocity);
+}
+//Send a MIDI note-off message.  
+void noteOff(byte channel, byte note, byte release_velocity) {
+  talkMIDI( (0x80 | channel), note, release_velocity);
+}
+//Plays a MIDI note. 
+void talkMIDI(byte cmd, byte data1, byte data2) {
+  digitalWrite(ledPin, HIGH);
+  mySerial.write(cmd);
+  mySerial.write(data1);
+  //Some commands only have one data byte. All cmds less than 0xBn have 2 data bytes 
+  if( (cmd & 0xF0) <= 0xB0)
+    mySerial.write(data2);
+  digitalWrite(ledPin, LOW);
+}
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
