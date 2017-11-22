@@ -21,3 +21,4 @@ SoftwareSerial mySerial(2, 3); // RX, TX
 SoftwareSerial blueToothSerial(RxD,TxD);
 
 thanks for using SENZA is a free artistic project so you can development more!!!!
+for more info or if you need something please contact me: oscar.octavio.soza.fieguroa@gmail.com
